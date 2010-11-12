@@ -173,12 +173,22 @@ Use FORCE to markup any buffer"
         (juick-markup-bold)
         (juick-markup-italic)
         (juick-markup-underline)
+	(juick-delimiter-insert)
         (when (and juick-icon-mode window-system)
           (clear-image-cache)
           (juick-avatar-insert)))))
 
 (add-hook 'jabber-alert-message-hooks 'juick-markup-chat)
-
+(setq juick-post-delimiter "_____________________\n")
+(defun juick-delimiter-insert ()
+  (goto-char (or juick-point-last-message (point-min)))
+  (let ((inhibit-read-only t))
+    (while (re-search-forward "\\(by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+      (progn
+        (goto-char (match-beginning 0))
+	(insert juick-post-delimiter)
+	(re-search-forward ":" nil t)))))
+	
 (defun juick-avatar-insert ()
   (goto-char (or juick-point-last-message (point-min)))
   (setq juick-avatar-internal-stack nil)
