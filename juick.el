@@ -149,6 +149,9 @@ Useful for people more reading instead writing")
 (defvar juick-italic-regex "[\n ]\\(/[^\n]+/\\)[\n ]")
 (defvar juick-underline-regex "[\n ]\\(\_[^\n]+\_\\)[\n ]")
 
+(defvar juick-id-simple-regex "#[0-9]+")
+(defvar juick-username-simple-regex "@[0-9A-Za-z@\.\-]+")
+
 (defun juick-markup-chat (from buffer text proposed-alert &optional force)
   "Markup  message from `juick-bot-jid'.
 
@@ -398,7 +401,7 @@ in a match, if match send fake message himself"
   (save-excursion
     (beginning-of-line)
     (when (or (looking-at "#[0-9]+\\(/[0-9]+\\)?")
-              (looking-at "@[0-9A-Za-z@\.\-]+"))
+              (looking-at juick-username-simple-regex))
       (setq juick-bookmarks
             (remove-if
              '(lambda (x)
@@ -433,6 +436,31 @@ in a match, if match send fake message himself"
 
 (define-key jabber-chat-mode-map "a" 'juick-add-tag)
 (define-key jabber-chat-mode-map "r" 'juick-remove-tag)
+
+(defmacro define-juick-action (function-name matcher action)
+  "Define action at point matching matcher"
+  `(defun ,function-name ()
+     (interactive)
+     (if (and (equal (get-text-property (point) 'read-only) t)
+	      (,@matcher))
+	 (,@action)
+       (self-insert-command 1))))
+
+(define-juick-action juick-recommend
+  (thing-at-point-looking-at juick-id-simple-regex)
+  (juick-send-message juick-bot-jid
+		      (concat "! " (match-string-no-properties 0))))
+
+(define-juick-action juick-list-messages
+  (or (thing-at-point-looking-at juick-id-simple-regex)
+      (thing-at-point-looking-at juick-username-simple-regex))
+  (juick-send-message juick-bot-jid
+		      (concat (if (match-string 1)
+				  (match-string-no-properties 1)
+				(match-string-no-properties 0))
+			      "+")))
+(define-key jabber-chat-mode-map "!" 'juick-recommend)
+(define-key jabber-chat-mode-map "+" 'juick-list-messages)
 
 (defun juick-remove-tag ()
   (interactive)
@@ -471,8 +499,8 @@ in a match, if match send fake message himself"
 (defun juick-go-bookmark ()
   (interactive)
   (if (and (equal (get-text-property (point) 'read-only) t)
-	   (or (thing-at-point-looking-at "#[0-9]+")
-		   (thing-at-point-looking-at "@[0-9A-Za-z@\.\-]+")))
+	   (or (thing-at-point-looking-at juick-id-simple-regex)
+		   (thing-at-point-looking-at juick-username-simple-regex)))
 	       (juick-bookmark-add (match-string-no-properties 0) nil)
 	     (self-insert-command 1)))
 
@@ -480,7 +508,7 @@ in a match, if match send fake message himself"
   (interactive)
   (if (and (equal (get-text-property (point) 'read-only) t)
            (or (thing-at-point-looking-at "#\\([0-9]+\\)")
-               (thing-at-point-looking-at "@[0-9A-Za-z@\.\-]+")))
+               (thing-at-point-looking-at juick-username-simple-regex)))
       (if (match-string 1)
           (juick-api-subscribe (match-string-no-properties 1))
         (juick-send-message juick-bot-jid
@@ -491,7 +519,7 @@ in a match, if match send fake message himself"
   (interactive)
   (if (and (equal (get-text-property (point) 'read-only) t)
            (or (thing-at-point-looking-at "#\\([0-9]+\\)")
-               (thing-at-point-looking-at "@[0-9A-Za-z@\.\-]+")))
+               (thing-at-point-looking-at juick-username-simple-regex)))
       (if (match-string 1)
           (juick-api-unsubscribe (match-string-no-properties 1))
         (juick-send-message juick-bot-jid
@@ -509,7 +537,7 @@ in a match, if match send fake message himself"
 (defun juick-go-private ()
   (interactive)
   (if (and (equal (get-text-property (point) 'read-only) t)
-           (thing-at-point-looking-at "@[0-9A-Za-z@\.\-]+"))
+           (thing-at-point-looking-at juick-username-simple-regex))
       (progn
         (goto-char (point-max))
         (delete-region jabber-point-insert (point-max))
