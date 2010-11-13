@@ -179,7 +179,9 @@ Use FORCE to markup any buffer"
           (juick-avatar-insert)))))
 
 (add-hook 'jabber-alert-message-hooks 'juick-markup-chat)
-(setq juick-post-delimiter "\n____________________________________\n")
+;;(setq juick-post-delimiter "\n____________________________________\n")
+(defun juick-post-delimiter ()
+  (concat "\n" (make-string (window-width (selected-window)) ?_) "\n"))
 (defun juick-delimiter-insert ()
   (goto-char (or juick-point-last-message (point-min)))
   (let ((inhibit-read-only t))
@@ -187,7 +189,7 @@ Use FORCE to markup any buffer"
     (while (re-search-forward "\\(by \\|> \\|^\\)\\(@[0-9A-Za-z@\\.\\-]+\\):" nil t)
       (progn
         (goto-char (match-beginning 2))
-	(insert juick-post-delimiter)
+	(insert (juick-post-delimiter))
 	(re-search-forward ":" nil t)))))
 	
 (defun juick-avatar-insert ()
