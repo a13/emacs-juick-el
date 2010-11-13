@@ -79,6 +79,12 @@
   "face for displaying tags"
   :group 'juick-faces)
 
+(defface juick-quote-face
+  '((t (:slant italic)))
+  "face for displaying italic text"
+  :group 'juick-faces)
+
+
 (defface juick-bold-face
   '((t (:weight bold :slant normal)))
   "face for displaying bold text"
@@ -142,6 +148,7 @@ Useful for people more reading instead writing")
     (make-directory juick-tmp-dir))
 
 ;; from http://juick.com/help/
+;; markup re
 (defvar juick-id-regex "\\(#[0-9]+\\(/[0-9]+\\)?\\)")
 (defvar juick-user-name-regex "[^0-9A-Za-z\\.]\\(@[0-9A-Za-z@\\.\\-]+\\)")
 (defvar juick-tag-regex "\\(\\*[^ \n]+\\)")
@@ -149,8 +156,11 @@ Useful for people more reading instead writing")
 (defvar juick-italic-regex "[\n ]\\(/[^\n]+/\\)[\n ]")
 (defvar juick-underline-regex "[\n ]\\(\_[^\n]+\_\\)[\n ]")
 
+(defvar juick-quote-regex "\n\\(>.*$\\)\n")
+;; misc re
 (defvar juick-id-simple-regex "#[0-9]+")
 (defvar juick-username-simple-regex "@[0-9A-Za-z@\.\-]+")
+
 
 (defun juick-markup-chat (from buffer text proposed-alert &optional force)
   "Markup  message from `juick-bot-jid'.
@@ -170,6 +180,7 @@ Use FORCE to markup any buffer"
         (juick-markup-user-name)
         (juick-markup-id)
         (juick-markup-tag)
+        (juick-markup-quote)
         (juick-markup-bold)
         (juick-markup-italic)
         (juick-markup-underline)
@@ -619,6 +630,13 @@ in a match, if match send fake message himself"
           (juick-add-overlay beg-tag end-tag 'juick-tag-face)
           (make-button beg-tag end-tag 'action 'juick-find-tag))
         (setq count-tag (+ count-tag 1))))))
+
+(defun juick-markup-quote ()
+  (goto-char (or juick-point-last-message (point-min)))
+  (while (re-search-forward juick-quote-regex nil t)
+    (juick-add-overlay (match-beginning 1) (match-end 1)
+                       'juick-quote-face)
+    (goto-char (- (point) 1))))
 
 (defun juick-markup-italic ()
   (goto-char (or juick-point-last-message (point-min)))
