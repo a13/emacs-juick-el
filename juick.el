@@ -186,7 +186,7 @@ Use FORCE to markup any buffer"
 (defun juick-delimiter-insert ()
   (goto-char (or juick-point-last-message (point-min)))
   (let ((inhibit-read-only t))
-    (while (re-search-forward "\\(by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+    (while (re-search-forward "\\(> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
       (goto-char (match-beginning 0))
       (re-search-forward "@" nil t)
       (goto-char (- (point) 1))
