@@ -182,15 +182,19 @@ Use FORCE to markup any buffer"
 ;;(setq juick-post-delimiter "\n____________________________________\n")
 (defun juick-post-delimiter ()
   (concat "\n" (make-string (window-width (selected-window)) ?_) "\n"))
+
 (defun juick-delimiter-insert ()
   (goto-char (or juick-point-last-message (point-min)))
   (let ((inhibit-read-only t))
-;;    (while (re-search-forward "\\(by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
-    (while (re-search-forward "\\(by \\|> \\|^\\)\\(@[0-9A-Za-z@\\.\\-]+\\):" nil t)
-      (progn
-        (goto-char (match-beginning 2))
-	(insert (juick-post-delimiter))
-	(re-search-forward ":" nil t)))))
+    (while (re-search-forward "\\(by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+      (goto-char (match-beginning 0))
+      (re-search-forward "@" nil t)
+      (goto-char (- (point) 1))
+      (insert (juick-post-delimiter))
+      (when (not (and juick-icon-mode window-system))
+	(insert " "))
+      (re-search-forward ":" nil t))))
+
 	
 (defun juick-avatar-insert ()
   (goto-char (or juick-point-last-message (point-min)))
