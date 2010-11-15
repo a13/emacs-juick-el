@@ -81,7 +81,12 @@
 
 (defface juick-quote-face
   '((t (:slant italic)))
-  "face for displaying italic text"
+  "face for displaying quote text"
+  :group 'juick-faces)
+
+(defface juick-pm-face
+  '((t (:foreground "gray" :weight bold :slant italic)))
+  "face for displaying private messages"
   :group 'juick-faces)
 
 
@@ -108,6 +113,8 @@ Useful for people more reading instead writing")
 (defvar juick-overlays nil)
 
 (defvar juick-bot-jid "juick@juick.com")
+
+(defvar juick-bot-name "juick")
 
 (defvar juick-image-buffer "*juick-avatar-dir*")
 
@@ -157,6 +164,8 @@ Useful for people more reading instead writing")
 (defvar juick-underline-regex "[\n ]\\(\_[^\n]+\_\\)[\n ]")
 
 (defvar juick-quote-regex "\n\\(>.*$\\)\n")
+(defvar juick-pm-regex "from @[0-9A-Za-z@\\.\\-]+:\n\\(\\(.\\|\n\\)+?\\)\n\\(---\n\\|\\[[0-9\-: ]+\\]\\)")
+
 ;; misc re
 (defvar juick-id-simple-regex "#[0-9]+")
 (defvar juick-username-simple-regex "@[0-9A-Za-z@\.\-]+")
@@ -184,20 +193,23 @@ Use FORCE to markup any buffer"
         (juick-markup-bold)
         (juick-markup-italic)
         (juick-markup-underline)
+	(juick-markup-pm)
 	(juick-delimiter-insert)
         (when (and juick-icon-mode window-system)
           (clear-image-cache)
           (juick-avatar-insert)))))
 
 (add-hook 'jabber-alert-message-hooks 'juick-markup-chat)
-;;(setq juick-post-delimiter "\n____________________________________\n")
+
+(defvar juick-delimiter-autoresize t)
+
 (defun juick-post-delimiter ()
   (concat "\n" (make-string (window-width (selected-window)) ?_) "\n"))
 
 (defun juick-delimiter-insert ()
   (goto-char (or juick-point-last-message (point-min)))
   (let ((inhibit-read-only t))
-    (while (re-search-forward "\\(Reply by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+    (while (re-search-forward "\\(from @\\|Reply by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
       (goto-char (match-beginning 0))
       (re-search-forward "@" nil t)
       (goto-char (- (point) 1))
@@ -206,12 +218,30 @@ Use FORCE to markup any buffer"
 	(insert " "))
       (re-search-forward ":" nil t))))
 
-	
+(defun juick-delimiter-reset (&optional frame)
+  "Replaces old delimiter with the one with actual size"
+  (interactive)
+  (let ((name (jabber-jid-rostername juick-bot-jid)))
+    (when name (setq juick-bot-name name)))
+  (save-excursion
+    (let ((buffer (jabber-chat-get-buffer juick-bot-name))
+	   (inhibit-read-only t))
+      (when (get-buffer buffer)
+	(with-current-buffer buffer
+	  (goto-char (point-min))
+	  (while (re-search-forward "\n_+\n" nil t)
+	    (replace-match (juick-post-delimiter))
+	    (goto-char (+ 1 (point)))))))))
+
+(when juick-delimiter-autoresize 
+  (add-hook 'window-size-change-functions 'juick-delimiter-reset))
+;;(remove-hook 'window-size-change-functions 'juick-delimiter-reset)
+
 (defun juick-avatar-insert ()
   (goto-char (or juick-point-last-message (point-min)))
   (setq juick-avatar-internal-stack nil)
   (let ((inhibit-read-only t))
-    (while (re-search-forward "\\(by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+    (while (re-search-forward "\\(from @\\|by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
       (let* ((icon-string "\n ")
              (name (match-string-no-properties 2))
              (fake-png (concat juick-tmp-dir "/" name ".png")))
@@ -637,6 +667,14 @@ in a match, if match send fake message himself"
     (juick-add-overlay (match-beginning 1) (match-end 1)
                        'juick-quote-face)
     (goto-char (- (point) 1))))
+
+(defun juick-markup-pm ()
+  (goto-char (or juick-point-last-message (point-min)))
+  (while (re-search-forward juick-pm-regex nil t)
+    (juick-add-overlay (match-beginning 1) (match-end 1)
+                       'juick-pm-face)
+    (goto-char (- (point) 1))))
+
 
 (defun juick-markup-italic ()
   (goto-char (or juick-point-last-message (point-min)))
