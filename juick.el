@@ -164,6 +164,8 @@ Useful for people more reading instead writing")
 (defvar juick-underline-regex "[\n ]\\(\_[^\n]+\_\\)[\n ]")
 
 (defvar juick-quote-regex "\n\\(>.*$\\)\n")
+;; very experimental
+;; (setq juick-quote-regex "\n\\(>\\(.\\|\n\\)+?.*?\\)\n\\(\\(ht\\|f\\)tps?:\\|#\\|\n\\|\\[\\|---\\)")
 (defvar juick-pm-regex "from @[0-9A-Za-z@\\.\\-]+:\n\\(\\(.\\|\n\\)+?\\)\n\\(---\n\\|\\[[0-9\-: ]+\\]\\)")
 
 ;; misc re
@@ -190,10 +192,10 @@ Use FORCE to markup any buffer"
         (juick-markup-id)
         (juick-markup-tag)
         (juick-markup-quote)
+	(juick-markup-pm)
         (juick-markup-bold)
         (juick-markup-italic)
         (juick-markup-underline)
-	(juick-markup-pm)
 	(juick-delimiter-insert)
         (when (and juick-icon-mode window-system)
           (clear-image-cache)
@@ -206,7 +208,7 @@ Use FORCE to markup any buffer"
 (defun juick-post-delimiter ()
   (concat "\n" (make-string
 		(+ (window-width (selected-window))
-		   (if (window-system) 0 -1))
+		   (if (window-system) 0))
 		?_) "\n"))
 
 (defun juick-delimiter-insert ()
