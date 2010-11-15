@@ -500,6 +500,13 @@ in a match, if match send fake message himself"
 (define-key jabber-chat-mode-map "a" 'juick-add-tag)
 (define-key jabber-chat-mode-map "r" 'juick-remove-tag)
 
+(define-key jabber-chat-mode-map "!" 'juick-recommend)
+(define-key jabber-chat-mode-map "+" 'juick-list-messages)
+
+(define-key jabber-chat-mode-map "l" 'juick-like)
+(define-key jabber-chat-mode-map "д" 'juick-like)
+
+
 (defmacro define-juick-action (function-name matcher action)
   "Define action at point matching matcher"
   `(defun ,function-name ()
@@ -528,10 +535,6 @@ in a match, if match send fake message himself"
 				(match-string-no-properties 0))
 			      "+")))
 
-(define-key jabber-chat-mode-map "!" 'juick-recommend)
-(define-key jabber-chat-mode-map "+" 'juick-list-messages)
-(define-key jabber-chat-mode-map "l" 'juick-like)
-(define-key jabber-chat-mode-map "д" 'juick-like)
 
 (defun juick-remove-tag ()
   (interactive)
