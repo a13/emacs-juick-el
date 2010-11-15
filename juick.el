@@ -156,7 +156,7 @@ Useful for people more reading instead writing")
 
 ;; from http://juick.com/help/
 ;; markup re
-(defvar juick-id-regex "\\(#[0-9]+\\(/[0-9]+\\)?\\)")
+(defvar juick-id-regex "[^0-9]+\\(#[0-9]+\\(/[0-9]+\\)?\\)")
 (defvar juick-user-name-regex "[^0-9A-Za-z\\.]\\(@[0-9A-Za-z@\\.\\-]+\\)")
 (defvar juick-tag-regex "\\(\\*[^ \n]+\\)")
 (defvar juick-bold-regex "[\n ]\\(\\*[^\n]+*\\*\\)[\n ]")
