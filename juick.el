@@ -204,7 +204,10 @@ Use FORCE to markup any buffer"
 (defvar juick-delimiter-autoresize t)
 
 (defun juick-post-delimiter ()
-  (concat "\n" (make-string (window-width (selected-window)) ?_) "\n"))
+  (concat "\n" (make-string
+		(+ (window-width (selected-window))
+		   (if (window-system) 0 -1))
+		?_) "\n"))
 
 (defun juick-delimiter-insert ()
   (goto-char (or juick-point-last-message (point-min)))
