@@ -146,7 +146,6 @@ Useful for people more reading instead writing")
 
 (defvar juick-timer-interval 120)
 (defvar juick-timer nil)
-(defvar juick-url-timeout 5)
 
 (defvar juick-tmp-dir
   (expand-file-name (concat "juick-images-" (user-login-name))
@@ -224,7 +223,7 @@ Use FORCE to markup any buffer"
       (re-search-forward "@" nil t)
       (goto-char (- (point) 1))
       (insert (juick-post-delimiter))
-      (unless (and juick-icon-mode window-system)
+      (when (not (and juick-icon-mode window-system))
 	(insert " "))
       (re-search-forward ":" nil t))))
 
@@ -235,7 +234,7 @@ Use FORCE to markup any buffer"
     (when name (setq juick-bot-name name)))
   (save-excursion
     (let ((buffer (jabber-chat-get-buffer juick-bot-name))
-	  (inhibit-read-only t))
+	   (inhibit-read-only t))
       (when (get-buffer buffer)
 	(with-current-buffer buffer
 	  (goto-char (point-min))
@@ -257,12 +256,11 @@ Use FORCE to markup any buffer"
              (fake-png (concat juick-tmp-dir "/" name ".png")))
         (goto-char (match-beginning 0))
         (juick-avatar-download name)
-	(set-text-properties
-	 1 2 `(display
-	       ,(if (file-exists-p fake-png)
-		     `(image :type png :file ,fake-png)
-		   `(image :type png :data nil)))
-	 icon-string)
+        (set-text-properties
+         1 2 `(display
+               (image :type png
+                      :file ,fake-png))
+         icon-string)
         (re-search-forward "@" nil t)
         (goto-char (- (point) 1))
         (insert (concat icon-string " "))
