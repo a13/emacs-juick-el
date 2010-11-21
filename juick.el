@@ -181,11 +181,15 @@ Where FROM is jid sender, BUFFER is buffer with message TEXT
 Use FORCE to markup any buffer"
   (if (or force (string-match juick-bot-jid from))
       (save-excursion
-        (set-buffer buffer)
+	(set-buffer buffer)
         (when (null force)
           (if (version< jabber-version "0.8.0")
-              (jabber-truncate-top)
-            (jabber-truncate-top buffer))
+	      (jabber-truncate-top)
+	    (let ((version-new nil))
+	      (ignore-errors 
+		(jabber-truncate-top buffer)
+		(setq version-new t)) 
+	      (or version-new (jabber-truncate-top))))
           (setq juick-point-last-message
                 (re-search-backward "\\[[0-9]+:[0-9]+\\].*>" nil t)))
         (juick-markup-user-name)
