@@ -513,7 +513,8 @@ in a match, if match send fake message himself"
      (if (and (equal (get-text-property (point) 'read-only) t)
 	      (,@matcher))
 	 (,@action)
-       (self-insert-command 1))))
+       (unless (string= last-command "mouse-drag-region")
+         (self-insert-command 1)))))
 
 (define-juick-action juick-recommend
   (thing-at-point-looking-at juick-id-simple-regex)
@@ -537,98 +538,70 @@ in a match, if match send fake message himself"
 (define-key jabber-chat-mode-map "\M-p" 'juick-go-to-post-back)
 (define-key jabber-chat-mode-map "\M-n" 'juick-go-to-post-forward)
 
-(defun juick-remove-tag ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (thing-at-point-looking-at "\\(\\*[^ \n]+\\)"))
-      (save-excursion
+(define-juick-action juick-remove-tag
+  (thing-at-point-looking-at "\\(\\*[^ \n]+\\)")
+  (save-excursion
         (let ((tag (match-string-no-properties 1))
               (id (if (re-search-forward "^#[0-9]+\\(/[0-9]+\\)?" nil)
                       (match-string-no-properties 0))))
           (when (and id tag)
             (message (concat "Tag " tag " (" id ")" " deleted"))
-            (juick-send-message juick-bot-jid (concat id " " tag)))))
-    (self-insert-command 1)))
+            (juick-send-message juick-bot-jid (concat id " " tag))))))
 
-(defun juick-add-tag ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (thing-at-point-looking-at "#\\([0-9]+\\)"))
-      (let ((id (match-string-no-properties 0))
-            (tag (read-string "Type tag: ")))
-        (when (and id tag)
-          (message (concat "Tag " tag " (" id ")" " added"))
-          (juick-send-message juick-bot-jid
-                              (concat id (if (string-match "^\\*" tag) " " " *") tag))))
-    (self-insert-command 1)))
-
-(defun juick-go-url ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (or (thing-at-point-looking-at juick-id-regex)
-               (thing-at-point-looking-at juick-user-name-regex)))
-      (let* ((part-of-url (match-string-no-properties 1))
-             (part-of-url (replace-regexp-in-string "@\\|#" "" part-of-url))
-             (part-of-url (replace-regexp in-string "/" "#" part-of-url)))
-        (message part-of-url)
-        (browse-url (concat "http://juick.com/" part-of-url)))
-    (unless (string= last-command "mouse-drag-region")
-      (self-insert-command 1))))
-
-(defun juick-go-mplayer ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (thing-at-point-looking-at "http://i.juick.com/video/"))
-      (shell-command (concat "mplayer " (browse-url-url-at-point) "&") nil nil)
-    (self-insert-command 1)))
-
-(defun juick-go-bookmark ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-	   (or (thing-at-point-looking-at juick-id-simple-regex)
-               (thing-at-point-looking-at juick-username-simple-regex)))
-      (juick-bookmark-add (match-string-no-properties 0) nil)
-    (self-insert-command 1)))
-
-(defun juick-go-subscribe ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (or (thing-at-point-looking-at "#\\([0-9]+\\)")
-               (thing-at-point-looking-at juick-username-simple-regex)))
-      (if (match-string 1)
-          (juick-api-subscribe (match-string-no-properties 1))
-        (juick-send-message juick-bot-jid
-                            (concat "S " (match-string-no-properties 0))))
-    (self-insert-command 1)))
-
-(defun juick-go-unsubscribe ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (or (thing-at-point-looking-at "#\\([0-9]+\\)")
-               (thing-at-point-looking-at juick-username-simple-regex)))
-      (if (match-string 1)
-          (juick-api-unsubscribe (match-string-no-properties 1))
-        (juick-send-message juick-bot-jid
-                            (concat "U " (match-string-no-properties 0))))
-    (self-insert-command 1)))
-
-(defun juick-go-delete ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (thing-at-point-looking-at "#[0-9]+\\(/[0-9]+\\)?"))
+(define-juick-action juick-add-tag
+  (thing-at-point-looking-at "#\\([0-9]+\\)")
+  (let ((id (match-string-no-properties 0))
+        (tag (read-string "Type tag: ")))
+    (when (and id tag)
+      (message (concat "Tag " tag " (" id ")" " added"))
       (juick-send-message juick-bot-jid
-                          (concat "D " (match-string-no-properties 0)))
-    (self-insert-command 1)))
+                          (concat id (if (string-match "^\\*" tag) " " " *") tag)))))
 
-(defun juick-go-private ()
-  (interactive)
-  (if (and (equal (get-text-property (point) 'read-only) t)
-           (thing-at-point-looking-at juick-username-simple-regex))
-      (progn
-        (goto-char (point-max))
-        (delete-region jabber-point-insert (point-max))
-        (insert (concat "PM " (match-string-no-properties 0) " ")))
-    (self-insert-command 1)))
+(define-juick-action juick-go-url
+  (or (thing-at-point-looking-at juick-id-regex)
+      (thing-at-point-looking-at juick-user-name-regex))
+  (let* ((part-of-url (match-string-no-properties 1))
+         (part-of-url (replace-regexp-in-string "@\\|#" "" part-of-url))
+         (part-of-url (replace-regexp in-string "/" "#" part-of-url)))
+    (message part-of-url)
+    (browse-url (concat "http://juick.com/" part-of-url))))
+
+(define-juick-action juick-go-mplayer
+  (thing-at-point-looking-at "http://i.juick.com/video/")
+  (shell-command (concat "mplayer " (browse-url-url-at-point) "&") nil nil))
+
+(define-juick-action juick-go-bookmark
+  (or (thing-at-point-looking-at juick-id-simple-regex)
+               (thing-at-point-looking-at juick-username-simple-regex))
+  (juick-bookmark-add (match-string-no-properties 0) nil))
+
+(define-juick-action juick-go-subscribe
+  (or (thing-at-point-looking-at "#\\([0-9]+\\)")
+      (thing-at-point-looking-at juick-username-simple-regex))
+  (if (match-string 1)
+          (juick-api-subscribe (match-string-no-properties 1))
+    (juick-send-message juick-bot-jid
+                        (concat "S " (match-string-no-properties 0)))))
+
+(define-juick-action juick-go-unsubscribe
+  (or (thing-at-point-looking-at "#\\([0-9]+\\)")
+      (thing-at-point-looking-at juick-username-simple-regex))
+  (if (match-string 1)
+      (juick-api-unsubscribe (match-string-no-properties 1))
+    (juick-send-message juick-bot-jid
+                        (concat "U " (match-string-no-properties 0)))))
+
+(define-juick-action juick-go-delete
+  (thing-at-point-looking-at "#[0-9]+\\(/[0-9]+\\)?")
+  (juick-send-message juick-bot-jid
+                      (concat "D " (match-string-no-properties 0))))
+
+(define-juick-action juick-go-private
+  (thing-at-point-looking-at juick-username-simple-regex)
+  (progn
+    (goto-char (point-max))
+    (delete-region jabber-point-insert (point-max))
+    (insert (concat "PM " (match-string-no-properties 0) " "))))
 
 
 (defun juick-go-to-post-back ()
