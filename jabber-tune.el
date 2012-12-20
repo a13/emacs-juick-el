@@ -67,29 +67,30 @@
 ;;; Code:
 
 (defun jabber-pep-tune-send (artist length rating source title track uri)
-  (when (and artist title)
-    (unless (memq jabber-buffer-connection jabber-connections)
-      (let ((new-jc (jabber-find-active-connection jabber-buffer-connection)))
-        (if new-jc
-            (setq jabber-buffer-connection new-jc)
-          (setq jabber-buffer-connection (jabber-read-account)))))
-    (let* ((id (apply 'format "emacs-msg-%d.%d.%d" (current-time)))
-           (stanza-to-send `(iq
-                             ((from . ,(jabber-connection-bare-jid jabber-buffer-connection))
-                              (id . ,id)
-                              (type . "set"))
-                             (pubsub ((xmlns . "http://jabber.org/protocol/pubsub"))
-                                     (publish ((node . "http://jabber.org/protocol/tune"))
-                                              (item nil
-                                                    ((tune ((xmlns . "http://jabber.org/protocol/tune"))
-                                                           (artist nil ,artist)
-                                                           (length nil ,length)
-                                                           (rating nil ,rating)
-                                                           (source nil ,source)
-                                                           (title nil ,title)
-                                                           (track nil ,track)
-                                                           (uri nil ,uri)))))))))
-      (jabber-send-sexp jabber-buffer-connection stanza-to-send))))
+  (unless (memq jabber-buffer-connection jabber-connections)
+    (let ((new-jc (jabber-find-active-connection jabber-buffer-connection)))
+      (if new-jc
+	  (setq jabber-buffer-connection new-jc)
+	(setq jabber-buffer-connection (jabber-read-account)))))
+  (let* ((id (apply 'format "emacs-msg-%d.%d.%d" (current-time)))
+	 (stanza-to-send `(iq
+			   ((from . ,(jabber-connection-bare-jid jabber-buffer-connection))
+			    (id . ,id)
+			    (type . "set"))
+			   (pubsub ((xmlns . "http://jabber.org/protocol/pubsub"))
+				   (publish ((node . "http://jabber.org/protocol/tune"))
+					    (item nil
+						  ((tune ((xmlns . "http://jabber.org/protocol/tune"))
+							 ,(when (and artist title)
+							    `((artist nil ,artist)
+							      (length nil ,length)
+							      (rating nil ,rating)
+							      (source nil ,source)
+							      (title nil ,title)
+							      (track nil ,track)
+							      (uri nil ,uri)))
+							 ))))))))
+    (jabber-send-sexp jabber-buffer-connection stanza-to-send)))
 
 (defun jabber-event-tune-send (to artist length rating source title track uri)
   (when (and artist title)
