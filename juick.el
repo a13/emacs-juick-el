@@ -147,6 +147,8 @@ Useful for people more reading instead writing")
 (defvar juick-timer-interval 120)
 (defvar juick-timer nil)
 
+(defvar juick-use-cyr-map nil)
+
 (defvar juick-tmp-dir
   (expand-file-name (concat "juick-images-" (user-login-name))
                     temporary-file-directory))
@@ -183,13 +185,10 @@ Use FORCE to markup any buffer"
       (save-excursion
 	(set-buffer buffer)
         (when (null force)
-          (if (version< jabber-version "0.8.0")
-	      (jabber-truncate-top)
-	    (let ((version-new nil))
-	      (ignore-errors 
-		(jabber-truncate-top buffer)
-		(setq version-new t)) 
-	      (or version-new (jabber-truncate-top))))
+          (condition-case nil
+              (jabber-truncate-top)
+            (wrong-number-of-arguments
+             (jabber-truncate-top buffer)))
           (setq juick-point-last-message
                 (re-search-backward "\\[[0-9]+:[0-9]+\\].*>" nil t)))
         (juick-markup-user-name)
@@ -234,7 +233,7 @@ Use FORCE to markup any buffer"
     (when name (setq juick-bot-name name)))
   (save-excursion
     (let ((buffer (jabber-chat-get-buffer juick-bot-name))
-	   (inhibit-read-only t))
+          (inhibit-read-only t))
       (when (get-buffer buffer)
 	(with-current-buffer buffer
 	  (goto-char (point-min))
@@ -352,8 +351,8 @@ Use FORCE to markup any buffer"
 (defun juick-api-unsubscribe (id)
   "Unsubscribe to message with ID."
   (juick-api-request `(subscriptions ((xmlns . "http://juick.com/subscriptions#messages")
-                              (action . "unsubscribe")
-                              (mid . ,id))) "set" nil)
+                                      (action . "unsubscribe")
+                                      (mid . ,id))) "set" nil)
   (message "Unsubscribing to %s" id))
 
 (defun juick-api-subscribe (id)
@@ -361,8 +360,8 @@ Use FORCE to markup any buffer"
 
 Recieving full new message."
   (juick-api-request `(subscriptions ((xmlns . "http://juick.com/subscriptions#messages")
-                              (action . "subscribe")
-                              (mid . ,id))) "set" nil)
+                                      (action . "subscribe")
+                                      (mid . ,id))) "set" nil)
   (message "Subscribing to %s" id))
 
 (defun juick-api-last-message ()
@@ -484,32 +483,28 @@ in a match, if match send fake message himself"
 (define-key jabber-chat-mode-map "\C-cjb" 'juick-bookmark-list)
 
 (define-key jabber-chat-mode-map "g" 'juick-go-url)
-(define-key jabber-chat-mode-map "п" 'juick-go-url)
+(define-key jabber-chat-mode-map [mouse-1] 'juick-go-url)
 
 (define-key jabber-chat-mode-map "b" 'juick-go-bookmark)
-(define-key jabber-chat-mode-map "и" 'juick-go-bookmark)
-
 (define-key jabber-chat-mode-map "s" 'juick-go-subscribe)
-(define-key jabber-chat-mode-map "ы" 'juick-go-subscribe)
-
 (define-key jabber-chat-mode-map "u" 'juick-go-unsubscribe)
-(define-key jabber-chat-mode-map "г" 'juick-go-unsubscribe)
-
 (define-key jabber-chat-mode-map "d" 'juick-go-delete)
-(define-key jabber-chat-mode-map "в" 'juick-go-delete)
-
 (define-key jabber-chat-mode-map "p" 'juick-go-private)
-(define-key jabber-chat-mode-map "з" 'juick-go-private)
-
+(define-key jabber-chat-mode-map "m" 'juick-go-mplayer)
 (define-key jabber-chat-mode-map "a" 'juick-add-tag)
 (define-key jabber-chat-mode-map "r" 'juick-remove-tag)
-
 (define-key jabber-chat-mode-map "!" 'juick-recommend)
 (define-key jabber-chat-mode-map "+" 'juick-list-messages)
-
 (define-key jabber-chat-mode-map "l" 'juick-like)
-(define-key jabber-chat-mode-map "д" 'juick-like)
 
+(when juick-use-cyr-map
+  (define-key jabber-chat-mode-map "п" 'juick-go-url)
+  (define-key jabber-chat-mode-map "и" 'juick-go-bookmark)
+  (define-key jabber-chat-mode-map "ы" 'juick-go-subscribe)
+  (define-key jabber-chat-mode-map "г" 'juick-go-unsubscribe)
+  (define-key jabber-chat-mode-map "в" 'juick-go-delete)
+  (define-key jabber-chat-mode-map "з" 'juick-go-private)
+  (define-key jabber-chat-mode-map "д" 'juick-like))
 
 (defmacro define-juick-action (function-name matcher action)
   "Define action at point matching matcher"
@@ -539,6 +534,8 @@ in a match, if match send fake message himself"
 				(match-string-no-properties 0))
 			      "+")))
 
+(define-key jabber-chat-mode-map "\M-p" 'juick-go-to-post-back)
+(define-key jabber-chat-mode-map "\M-n" 'juick-go-to-post-forward)
 
 (defun juick-remove-tag ()
   (interactive)
@@ -568,19 +565,30 @@ in a match, if match send fake message himself"
 (defun juick-go-url ()
   (interactive)
   (if (and (equal (get-text-property (point) 'read-only) t)
-           (or (thing-at-point-looking-at "#\\([0-9]+\\)")
-               (thing-at-point-looking-at "@\\([0-9A-Za-z@\.\-]+\\)")))
-      (browse-url (concat "http://juick.com/"
-                          (match-string-no-properties 1)))
+           (or (thing-at-point-looking-at juick-id-regex)
+               (thing-at-point-looking-at juick-user-name-regex)))
+      (let* ((part-of-url (match-string-no-properties 1))
+             (part-of-url (replace-regexp-in-string "@\\|#" "" part-of-url))
+             (part-of-url (replace-regexp in-string "/" "#" part-of-url)))
+        (message part-of-url)
+        (browse-url (concat "http://juick.com/" part-of-url)))
+    (unless (string= last-command "mouse-drag-region")
+      (self-insert-command 1))))
+
+(defun juick-go-mplayer ()
+  (interactive)
+  (if (and (equal (get-text-property (point) 'read-only) t)
+           (thing-at-point-looking-at "http://i.juick.com/video/"))
+      (shell-command (concat "mplayer " (browse-url-url-at-point) "&") nil nil)
     (self-insert-command 1)))
 
 (defun juick-go-bookmark ()
   (interactive)
   (if (and (equal (get-text-property (point) 'read-only) t)
 	   (or (thing-at-point-looking-at juick-id-simple-regex)
-		   (thing-at-point-looking-at juick-username-simple-regex)))
-	       (juick-bookmark-add (match-string-no-properties 0) nil)
-	     (self-insert-command 1)))
+               (thing-at-point-looking-at juick-username-simple-regex)))
+      (juick-bookmark-add (match-string-no-properties 0) nil)
+    (self-insert-command 1)))
 
 (defun juick-go-subscribe ()
   (interactive)
@@ -605,12 +613,12 @@ in a match, if match send fake message himself"
     (self-insert-command 1)))
 
 (defun juick-go-delete ()
-     (interactive)
-     (if (and (equal (get-text-property (point) 'read-only) t)
-              (thing-at-point-looking-at "#[0-9]+\\(/[0-9]+\\)?"))
-         (juick-send-message juick-bot-jid
-                             (concat "D " (match-string-no-properties 0)))
-       (self-insert-command 1)))
+  (interactive)
+  (if (and (equal (get-text-property (point) 'read-only) t)
+           (thing-at-point-looking-at "#[0-9]+\\(/[0-9]+\\)?"))
+      (juick-send-message juick-bot-jid
+                          (concat "D " (match-string-no-properties 0)))
+    (self-insert-command 1)))
 
 (defun juick-go-private ()
   (interactive)
@@ -621,6 +629,15 @@ in a match, if match send fake message himself"
         (delete-region jabber-point-insert (point-max))
         (insert (concat "PM " (match-string-no-properties 0) " ")))
     (self-insert-command 1)))
+
+
+(defun juick-go-to-post-back ()
+  (interactive)
+  (re-search-backward "@[a-z0-9]+:$" nil t))
+
+(defun juick-go-to-post-forward ()
+  (interactive)
+  (re-search-forward "@[a-z0-9]+:$" nil t))
 
 (defun juick-send-message (to text)
   "Send TEXT to TO imediately"
@@ -738,7 +755,7 @@ in a match, if match send fake message himself"
     ;; usually #NNNN supposed #NNNN+
     (if (string-match "/" id)
         (insert (concat id " "))
-          (insert (concat id (if juick-reply-id-add-plus "+" " ")))))
+      (insert (concat id (if juick-reply-id-add-plus "+" " ")))))
   (recenter 10))
 
 (defun juick-find-tag (button)
@@ -789,6 +806,10 @@ in a match, if match send fake message himself"
       (let* ((body (cond
                     ((string= "№" body)
                      "#")
+                    ((string= "#random" body)
+                     (concat "#" (number-to-string
+                                  (random (string-to-number
+                                           (or juick-api-aftermid "9999999"))))))
                     ((string= "№+" body)
                      "#+")
                     ((string= "РУДЗ" body)
