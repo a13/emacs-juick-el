@@ -191,14 +191,19 @@ Use FORCE to markup any buffer"
              (jabber-truncate-top buffer)))
           (setq juick-point-last-message
                 (re-search-backward "\\[[0-9]+:[0-9]+\\].*>" nil t)))
-        (juick-markup-user-name)
-        (juick-markup-id)
+        (juick-button-markup juick-user-name-regex
+                             juick-user-name-face
+                             juick-insert-user-name)
+        (juick-button-markup juick-id-regex
+                             juick-id-face
+                             juick-insert-id)
+
         (juick-markup-tag)
-        (juick-markup-quote)
-	(juick-markup-pm)
-        (juick-markup-bold)
-        (juick-markup-italic)
-        (juick-markup-underline)
+        (juick-simple-markup juick-quote-regex juick-quote-face)
+        (juick-simple-markup juick-pm-regex juick-pm-face)
+        (juick-simple-markup juick-italic-regex juick-italic-face)
+        (juick-simple-markup juick-bold-regex juick-bold-face)
+        (juick-simple-markup juick-underline-regex juick-underline-face)
 	(juick-delimiter-insert)
         (when (and juick-icon-mode window-system)
           (clear-image-cache)
@@ -628,25 +633,23 @@ in a match, if match send fake message himself"
       (insert text)
       (jabber-chat-buffer-send))))
 
-(defun juick-markup-user-name ()
-  "Markup user-name matched by regex `juick-regex-user-name'"
-  (goto-char (or juick-point-last-message (point-min)))
-  (while (re-search-forward juick-user-name-regex nil t)
-    (when (match-string 1)
+(defmacro juick-simple-markup (re face)
+  `(progn
+    (goto-char (or juick-point-last-message (point-min)))
+    (while (re-search-forward ,re nil t)
       (juick-add-overlay (match-beginning 1) (match-end 1)
-                         'juick-user-name-face)
-      (make-button (match-beginning 1) (match-end 1)
-                   'action 'juick-insert-user-name))))
+                         ',face)
+      (goto-char (- (point) 1)))))
 
-(defun juick-markup-id ()
-  "Markup id matched by regex `juick-regex-id'"
-  (goto-char (or juick-point-last-message (point-min)))
-  (while (re-search-forward juick-id-regex nil t)
-    (when (match-string 1)
-      (juick-add-overlay (match-beginning 1) (match-end 1)
-                         'juick-id-face)
-      (make-button (match-beginning 1) (match-end 1)
-                   'action 'juick-insert-id))))
+(defmacro juick-button-markup (re face action)
+  `(progn 
+     (goto-char (or juick-point-last-message (point-min)))
+     (while (re-search-forward ,re nil t)
+       (when (match-string 1)
+         (juick-add-overlay (match-beginning 1) (match-end 1)
+                            ',face)
+         (make-button (match-beginning 1) (match-end 1)
+                      'action ',action)))))
 
 (defun juick-markup-tag ()
   "Markup tag matched by regex `juick-regex-tag'"
@@ -663,41 +666,6 @@ in a match, if match send fake message himself"
           (make-button beg-tag end-tag 'action 'juick-find-tag))
         (setq count-tag (+ count-tag 1))))))
 
-(defun juick-markup-quote ()
-  (goto-char (or juick-point-last-message (point-min)))
-  (while (re-search-forward juick-quote-regex nil t)
-    (juick-add-overlay (match-beginning 1) (match-end 1)
-                       'juick-quote-face)
-    (goto-char (- (point) 1))))
-
-(defun juick-markup-pm ()
-  (goto-char (or juick-point-last-message (point-min)))
-  (while (re-search-forward juick-pm-regex nil t)
-    (juick-add-overlay (match-beginning 1) (match-end 1)
-                       'juick-pm-face)
-    (goto-char (- (point) 1))))
-
-
-(defun juick-markup-italic ()
-  (goto-char (or juick-point-last-message (point-min)))
-  (while (re-search-forward juick-italic-regex nil t)
-    (juick-add-overlay (match-beginning 1) (match-end 1)
-                       'juick-italic-face)
-    (goto-char (- (point) 1))))
-
-(defun juick-markup-bold ()
-  (goto-char (or juick-point-last-message (point-min)))
-  (while (re-search-forward juick-bold-regex nil t)
-    (juick-add-overlay (match-beginning 1) (match-end 1)
-                       'juick-bold-face)
-    (goto-char (- (point) 1))))
-
-(defun juick-markup-underline ()
-  (goto-char (or juick-point-last-message (point-min)))
-  (while (re-search-forward juick-underline-regex nil t)
-    (juick-add-overlay (match-beginning 1) (match-end 1)
-                       'juick-underline-face)
-    (goto-char (- (point) 1))))
 
 ;;; XXX: maybe merge?
 (defun juick-insert-user-name (button)
