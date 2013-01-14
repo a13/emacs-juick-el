@@ -286,7 +286,7 @@ Use FORCE to markup any buffer"
                     '(lambda (status name)
                        (let ((result-buffer (current-buffer)))
                          (goto-char (point-min))
-                         (when (re-search-forward "http://i.juick.com/a/[0-9]+\.png" nil t)
+                         (when (re-search-forward "//i.juick.com/as/[0-9]+\.png" nil t)
                            (juick-avatar-download-and-save (match-string 0) name)
                            (kill-buffer result-buffer))))
                     (list name)))))
