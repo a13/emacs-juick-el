@@ -33,11 +33,7 @@
 
 ;; and any useful settings
 
-;; (setq juick-tag-subscribed '("linux" "juick" "jabber" "emacs" "vim"))
-;; (setq juick-auto-subscribe-list '("linux" "emacs" "vim" "juick" "ugnich"))
-;; (juick-auto-update t)
-
-;;; Default bind:
+;; Default bind:
 
 ;; u - unsubscribe message/user
 ;; s - subscribe message/user
@@ -132,17 +128,9 @@ Useful for people more reading instead writing")
 (defvar juick-icon-hight nil
   "If t then show 96x96 avatars")
 
-(defvar juick-tag-subscribed '()
-  "List subscribed tags")
-
-(defvar juick-auto-subscribe-list nil
-  "This list contained tag or username for auto subscribe")
-
 (defvar juick-bookmark-file (expand-file-name "~/.emacs.d/.juick-bkm"))
 
 (defvar juick-bookmarks '())
-
-(defvar juick-api-aftermid nil)
 
 (defvar juick-timer-interval 120)
 (defvar juick-timer nil)
@@ -159,6 +147,7 @@ Useful for people more reading instead writing")
 ;; from http://juick.com/help/
 ;; markup re
 (defvar juick-id-regex "[^0-9]+\\(#[0-9]+\\(/[0-9]+\\)?\\)")
+(defvar juick-id-simple-regex "#\\([0-9]+\\)")
 (defvar juick-user-name-regex "[^0-9A-Za-z\\.]\\(@[0-9A-Za-z@\\.\\-]+\\)")
 (defvar juick-tag-regex "\\(\\*[^ \n]+\\)")
 (defvar juick-bold-regex "[\n ]\\(\\*[^\n]+*\\*\\)[\n ]")
@@ -254,7 +243,7 @@ Use FORCE to markup any buffer"
   (goto-char (or juick-point-last-message (point-min)))
   (setq juick-avatar-internal-stack nil)
   (let ((inhibit-read-only t))
-    (while (re-search-forward "\\(from @\\|by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+    (while (re-search-forward "\\(from @\\|Reply by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
       (let* ((icon-string "\n ")
              (name (match-string-no-properties 2))
              (fake-png (concat juick-tmp-dir "/" name ".png")))
@@ -309,207 +298,6 @@ Use FORCE to markup any buffer"
                        (kill-buffer result-buffer)))
                   (list name))))
 
-(defun juick-auto-update ()
-  (interactive)
-  (if juick-timer
-      (progn
-        (cancel-timer juick-timer)
-        (setq juick-timer nil)
-        (message "auto update deactivated"))
-    (setq juick-timer
-          (run-at-time "0 sec"
-                       juick-timer-interval
-                       #'juick-api-last-message))
-    (message "auto update activated")))
-
-(defun juick-api-request (juick-stanza type callback)
-  "Make and process juick stanza
-\(http://juick.com/help/api/xmpp/)"
-  (let ((completions
-         (mapcar (lambda (c)
-                   (cons
-                    (jabber-connection-bare-jid c)
-                    c))
-                 jabber-connections))
-        (current-connection
-         ;; if the buffer is associated with a connection, use it
-         (when (and jabber-buffer-connection
-                    (memq jabber-buffer-connection jabber-connections))
-           (jabber-connection-bare-jid jabber-buffer-connection))))
-    (if (not current-connection)
-        ;; then use all accounts where exists juick@juick.com
-        (dolist (jc jabber-connections)
-          (if (member-if (lambda (x)
-                           (string-match (symbol-name x)  juick-bot-jid))
-                         (plist-get (fsm-get-state-data jc) :roster))
-              (jabber-send-iq jc juick-bot-jid type juick-stanza
-                              callback nil
-                              ;; this error code='404' (last message not found)
-                              nil nil)))
-      ;; else use current connection
-      (jabber-send-iq (cdr (assoc current-connection completions))
-                      juick-bot-jid type juick-stanza
-                      callback nil
-                      ;; this error code='404' (last message not found)
-                      nil nil))))
-
-(defun juick-api-unsubscribe (id)
-  "Unsubscribe to message with ID."
-  (juick-api-request `(subscriptions ((xmlns . "http://juick.com/subscriptions#messages")
-                                      (action . "unsubscribe")
-                                      (mid . ,id))) "set" nil)
-  (message "Unsubscribing to %s" id))
-
-(defun juick-api-subscribe (id)
-  "Subscribe to message with ID.
-
-Recieving full new message."
-  (juick-api-request `(subscriptions ((xmlns . "http://juick.com/subscriptions#messages")
-                                      (action . "subscribe")
-                                      (mid . ,id))) "set" nil)
-  (message "Subscribing to %s" id))
-
-(defun juick-api-last-message ()
-  "Recieving last ten message after `juick-api-aftermid'"
-  (juick-api-request `(query ((xmlns . "http://juick.com/query#messages")
-                              ,(if juick-api-aftermid `(aftermid . ,juick-api-aftermid))))
-                     "get" 'juick-api-last-message-cb))
-
-(defun juick-api-last-message-cb (jc xml-data closure-data)
-  "Checking `juick-auto-subscribe-list' and `juick-tag-subscribed'
-in a match, if match send fake message himself"
-  (let ((juick-query (jabber-xml-get-children
-                      (car (jabber-xml-get-children xml-data 'query))
-                      'juick))
-        (first-message t)) ;; XXX: i dont know how break out of dolist
-    (dolist (x juick-query)
-      (if (> (string-to-number (jabber-xml-get-attribute x 'mid))
-             (string-to-number (or juick-api-aftermid "0")))
-          (setq juick-api-aftermid (jabber-xml-get-attribute x 'mid)))
-      (setq first-message t)
-      ;; Message with uname auto subscribe
-      (when (assoc-string (jabber-xml-get-attribute x 'uname)
-                          juick-auto-subscribe-list)
-        (juick-api-subscribe (jabber-xml-get-attribute x 'mid)))
-      (dolist (tag (jabber-xml-get-children x 'tag))
-        ;; Message with tag auto subscribe
-        (when (assoc-string (car (jabber-xml-node-children tag))
-                            juick-auto-subscribe-list)
-          (juick-api-subscribe (jabber-xml-get-attribute x 'mid)))
-        (when (and first-message (assoc-string
-                                  (car (jabber-xml-node-children tag))
-                                  juick-tag-subscribed))
-          ;; make fake incomning message
-          (setq first-message nil)
-          (jabber-process-chat
-           jc
-           `(message
-             ((from . ,juick-bot-jid))
-             (body nil ,(concat
-                         "@"
-                         (jabber-xml-get-attribute x 'uname)
-                         ": "
-                         (mapconcat
-                          (lambda (tag)
-                            (concat "*" (car (jabber-xml-node-children tag))))
-                          (jabber-xml-get-children x 'tag)
-                          " ")
-                         "\n"
-                         (car (jabber-xml-node-children
-                               (car (jabber-xml-get-children x 'body))))
-                         "\n#" (jabber-xml-get-attribute x 'mid)
-                         " (" (or (jabber-xml-get-attribute x 'replies) "0") " replies)"
-                         " (S)")))))))))
-
-(defvar juick-bookmark-mode-map
-  (let ((map (make-sparse-keymap)))
-    (set-keymap-parent map text-mode-map)
-    (define-key map "q" 'juick-find-buffer)
-    (define-key map "d" 'juick-bookmark-remove)
-    (define-key map "\C-k" 'juick-bookmark-remove)
-    map)
-  "Keymap for `juick-bookmark-mode'.")
-
-(defun juick-bookmark-list (&optional force)
-  (interactive)
-  (let ((tmp-pos juick-point-last-message))
-    (setq juick-point-last-message nil)
-    (when (null force)
-      (split-window-vertically -10)
-      (windmove-down)
-      (switch-to-buffer "*juick-bookmark*"))
-    (toggle-read-only -1)
-    (delete-region (point-min) (point-max))
-    (dolist (x juick-bookmarks)
-      (insert (concat (car x) " " (cdr x) "\n")))
-    (goto-char (point-min))
-    (toggle-read-only)
-    (juick-markup-chat juick-bot-jid (current-buffer) nil nil t)
-    (setq juick-point-last-message tmp-pos)
-    (juick-bookmark-mode)))
-
-(defun juick-bookmark-save ()
-  (interactive)
-  (save-excursion
-    (find-file juick-bookmark-file)
-    (delete-region (point-min) (point-max))
-    (insert ";; -*- mode:emacs-lisp; coding: utf-8-emacs; -*-\n\n")
-    (insert "(setq juick-bookmarks '")
-    (insert (prin1-to-string juick-bookmarks))
-    (insert ")")
-    (write-file juick-bookmark-file)
-    (kill-buffer (current-buffer))))
-
-(defun juick-bookmark-add (id desc)
-  (interactive)
-  (when (not desc)
-    (setq desc (read-string (concat "Type description for " id ": "))))
-  (push `(,id . ,desc) juick-bookmarks)
-  (juick-bookmark-save))
-
-(defun juick-bookmark-remove ()
-  (interactive)
-  (save-excursion
-    (beginning-of-line)
-    (when (or (looking-at "#[0-9]+\\(/[0-9]+\\)?")
-              (looking-at juick-username-simple-regex))
-      (setq juick-bookmarks
-            (remove-if
-             '(lambda (x)
-                (if (string-match-p (car x) (match-string-no-properties 0))
-                    t)) juick-bookmarks))
-      (juick-bookmark-save)
-      (juick-bookmark-list t))))
-
-(define-derived-mode juick-bookmark-mode text-mode
-  "juick bookmark mode"
-  "Major mode for getting bookmark")
-
-(define-key jabber-chat-mode-map "\C-cjb" 'juick-bookmark-list)
-
-(define-key jabber-chat-mode-map "g" 'juick-go-url)
-(define-key jabber-chat-mode-map [mouse-1] 'juick-go-url)
-
-(define-key jabber-chat-mode-map "b" 'juick-go-bookmark)
-(define-key jabber-chat-mode-map "s" 'juick-go-subscribe)
-(define-key jabber-chat-mode-map "u" 'juick-go-unsubscribe)
-(define-key jabber-chat-mode-map "d" 'juick-go-delete)
-(define-key jabber-chat-mode-map "p" 'juick-go-private)
-(define-key jabber-chat-mode-map "m" 'juick-go-mplayer)
-(define-key jabber-chat-mode-map "a" 'juick-add-tag)
-(define-key jabber-chat-mode-map "r" 'juick-remove-tag)
-(define-key jabber-chat-mode-map "!" 'juick-recommend)
-(define-key jabber-chat-mode-map "+" 'juick-list-messages)
-(define-key jabber-chat-mode-map "l" 'juick-like)
-
-(when juick-use-cyr-map
-  (define-key jabber-chat-mode-map "п" 'juick-go-url)
-  (define-key jabber-chat-mode-map "и" 'juick-go-bookmark)
-  (define-key jabber-chat-mode-map "ы" 'juick-go-subscribe)
-  (define-key jabber-chat-mode-map "г" 'juick-go-unsubscribe)
-  (define-key jabber-chat-mode-map "в" 'juick-go-delete)
-  (define-key jabber-chat-mode-map "з" 'juick-go-private)
-  (define-key jabber-chat-mode-map "д" 'juick-like))
 
 (defmacro define-juick-action (function-name matcher action)
   "Define action at point matching matcher"
@@ -554,7 +342,7 @@ in a match, if match send fake message himself"
             (juick-send-message juick-bot-jid (concat id " " tag))))))
 
 (define-juick-action juick-add-tag
-  (thing-at-point-looking-at "#\\([0-9]+\\)")
+  (thing-at-point-looking-at juick-id-simple-regex)
   (let ((id (match-string-no-properties 0))
         (tag (read-string "Type tag: ")))
     (when (and id tag)
@@ -577,24 +365,20 @@ in a match, if match send fake message himself"
 
 (define-juick-action juick-go-bookmark
   (or (thing-at-point-looking-at juick-id-simple-regex)
-               (thing-at-point-looking-at juick-username-simple-regex))
+      (thing-at-point-looking-at juick-username-simple-regex))
   (juick-bookmark-add (match-string-no-properties 0) nil))
 
 (define-juick-action juick-go-subscribe
-  (or (thing-at-point-looking-at "#\\([0-9]+\\)")
+  (or (thing-at-point-looking-at juick-id-simple-regex)
       (thing-at-point-looking-at juick-username-simple-regex))
-  (if (match-string 1)
-          (juick-api-subscribe (match-string-no-properties 1))
-    (juick-send-message juick-bot-jid
-                        (concat "S " (match-string-no-properties 0)))))
+  (juick-send-message juick-bot-jid
+                      (concat "S " (match-string-no-properties 0))))
 
 (define-juick-action juick-go-unsubscribe
-  (or (thing-at-point-looking-at "#\\([0-9]+\\)")
+  (or (thing-at-point-looking-at juick-id-simple-regex)
       (thing-at-point-looking-at juick-username-simple-regex))
-  (if (match-string 1)
-      (juick-api-unsubscribe (match-string-no-properties 1))
-    (juick-send-message juick-bot-jid
-                        (concat "U " (match-string-no-properties 0)))))
+  (juick-send-message juick-bot-jid
+                      (concat "U " (match-string-no-properties 0))))
 
 (define-juick-action juick-go-delete
   (thing-at-point-looking-at "#[0-9]+\\(/[0-9]+\\)?")
@@ -749,8 +533,7 @@ in a match, if match send fake message himself"
                      "#")
                     ((string= "#random" body)
                      (concat "#" (number-to-string
-                                  (random (string-to-number
-                                           (or juick-api-aftermid "9999999"))))))
+                                  (random (string-to-number "9999999")))))
                     ((string= "№+" body)
                      "#+")
                     ((string= "РУДЗ" body)
@@ -783,8 +566,101 @@ in a match, if match send fake message himself"
     (delete-overlay overlay))
   (setq juick-overlays nil))
 
+
+;; Bookmarks
+(defvar juick-bookmark-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map text-mode-map)
+    (define-key map "q" 'juick-find-buffer)
+    (define-key map "d" 'juick-bookmark-remove)
+    (define-key map "\C-k" 'juick-bookmark-remove)
+    map)
+  "Keymap for `juick-bookmark-mode'.")
+
+(defun juick-bookmark-list (&optional force)
+  (interactive)
+  (let ((tmp-pos juick-point-last-message))
+    (setq juick-point-last-message nil)
+    (when (null force)
+      (split-window-vertically -10)
+      (windmove-down)
+      (switch-to-buffer "*juick-bookmark*"))
+    (toggle-read-only -1)
+    (delete-region (point-min) (point-max))
+    (dolist (x juick-bookmarks)
+      (insert (concat (car x) " " (cdr x) "\n")))
+    (goto-char (point-min))
+    (toggle-read-only)
+    (juick-markup-chat juick-bot-jid (current-buffer) nil nil t)
+    (setq juick-point-last-message tmp-pos)
+    (juick-bookmark-mode)))
+
+(defun juick-bookmark-save ()
+  (interactive)
+  (save-excursion
+    (find-file juick-bookmark-file)
+    (delete-region (point-min) (point-max))
+    (insert ";; -*- mode:emacs-lisp; coding: utf-8-emacs; -*-\n\n")
+    (insert "(setq juick-bookmarks '")
+    (insert (prin1-to-string juick-bookmarks))
+    (insert ")")
+    (write-file juick-bookmark-file)
+    (kill-buffer (current-buffer))))
+
+(defun juick-bookmark-add (id desc)
+  (interactive)
+  (when (not desc)
+    (setq desc (read-string (concat "Type description for " id ": "))))
+  (push `(,id . ,desc) juick-bookmarks)
+  (juick-bookmark-save))
+
+(defun juick-bookmark-remove ()
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (when (or (looking-at "#[0-9]+\\(/[0-9]+\\)?")
+              (looking-at juick-username-simple-regex))
+      (setq juick-bookmarks
+            (remove-if
+             '(lambda (x)
+                (if (string-match-p (car x) (match-string-no-properties 0))
+                    t)) juick-bookmarks))
+      (juick-bookmark-save)
+      (juick-bookmark-list t))))
+
+(define-derived-mode juick-bookmark-mode text-mode
+  "juick bookmark mode"
+  "Major mode for getting bookmark")
+
 (if (file-exists-p juick-bookmark-file)
     (load-file juick-bookmark-file))
+
+;; keymaps
+(define-key jabber-chat-mode-map "\C-cjb" 'juick-bookmark-list)
+
+(define-key jabber-chat-mode-map "g" 'juick-go-url)
+(define-key jabber-chat-mode-map [mouse-1] 'juick-go-url)
+
+(define-key jabber-chat-mode-map "b" 'juick-go-bookmark)
+(define-key jabber-chat-mode-map "s" 'juick-go-subscribe)
+(define-key jabber-chat-mode-map "u" 'juick-go-unsubscribe)
+(define-key jabber-chat-mode-map "d" 'juick-go-delete)
+(define-key jabber-chat-mode-map "p" 'juick-go-private)
+(define-key jabber-chat-mode-map "m" 'juick-go-mplayer)
+(define-key jabber-chat-mode-map "a" 'juick-add-tag)
+(define-key jabber-chat-mode-map "r" 'juick-remove-tag)
+(define-key jabber-chat-mode-map "!" 'juick-recommend)
+(define-key jabber-chat-mode-map "+" 'juick-list-messages)
+(define-key jabber-chat-mode-map "l" 'juick-like)
+
+(when juick-use-cyr-map
+  (define-key jabber-chat-mode-map "п" 'juick-go-url)
+  (define-key jabber-chat-mode-map "и" 'juick-go-bookmark)
+  (define-key jabber-chat-mode-map "ы" 'juick-go-subscribe)
+  (define-key jabber-chat-mode-map "г" 'juick-go-unsubscribe)
+  (define-key jabber-chat-mode-map "в" 'juick-go-delete)
+  (define-key jabber-chat-mode-map "з" 'juick-go-private)
+  (define-key jabber-chat-mode-map "д" 'juick-like))
 
 (provide 'juick)
 ;;; juick.el ends here
