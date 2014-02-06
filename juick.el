@@ -186,7 +186,6 @@ Use FORCE to markup any buffer"
         (juick-button-markup juick-id-regex
                              juick-id-face
                              juick-insert-id)
-
         (juick-markup-tag)
         (juick-simple-markup juick-quote-regex juick-quote-face)
         (juick-simple-markup juick-pm-regex juick-pm-face)
@@ -310,14 +309,18 @@ Use FORCE to markup any buffer"
        (unless (string= last-command "mouse-drag-region")
          (self-insert-command 1)))))
 
+ (defun things-at-point-looking-at (&rest regexps)
+   "Multi-argument thing-at-point-looking-at"
+   (cl-some 'identity
+            (mapcar 'thing-at-point-looking-at regexps)))
+
 (define-juick-action juick-recommend
   (thing-at-point-looking-at juick-id-simple-regex)
   (juick-send-message juick-bot-jid
 		      (concat "! " (match-string-no-properties 0))))
 
 (define-juick-action juick-list-messages
-  (or (thing-at-point-looking-at juick-id-simple-regex)
-      (thing-at-point-looking-at juick-username-simple-regex))
+  (things-at-point-looking-at juick-id-simple-regex juick-username-simple-regex)
   (juick-send-message juick-bot-jid
 		      (concat (if (match-string 1)
 				  (match-string-no-properties 1)
@@ -347,8 +350,7 @@ Use FORCE to markup any buffer"
                           (concat id (if (string-match "^\\*" tag) " " " *") tag)))))
 
 (define-juick-action juick-go-url
-  (or (thing-at-point-looking-at juick-id-regex)
-      (thing-at-point-looking-at juick-user-name-regex))
+  (things-at-point-looking-at juick-id-regex juick-user-name-regex)
   (let* ((part-of-url (match-string-no-properties 1))
          (part-of-url (replace-regexp-in-string "@\\|#" "" part-of-url))
          (part-of-url (replace-regexp in-string "/" "#" part-of-url)))
@@ -360,19 +362,16 @@ Use FORCE to markup any buffer"
   (shell-command (concat "mplayer " (browse-url-url-at-point) "&") nil nil))
 
 (define-juick-action juick-go-bookmark
-  (or (thing-at-point-looking-at juick-id-simple-regex)
-      (thing-at-point-looking-at juick-username-simple-regex))
+  (things-at-point-looking-at juick-id-simple-regex juick-username-simple-regex)
   (juick-bookmark-add (match-string-no-properties 0) nil))
 
 (define-juick-action juick-go-subscribe
-  (or (thing-at-point-looking-at juick-id-simple-regex)
-      (thing-at-point-looking-at juick-username-simple-regex))
+  (things-at-point-looking-at juick-id-simple-regex juick-username-simple-regex)
   (juick-send-message juick-bot-jid
                       (concat "S " (match-string-no-properties 0))))
 
 (define-juick-action juick-go-unsubscribe
-  (or (thing-at-point-looking-at juick-id-simple-regex)
-      (thing-at-point-looking-at juick-username-simple-regex))
+  (things-at-point-looking-at juick-id-simple-regex juick-username-simple-regex)
   (juick-send-message juick-bot-jid
                       (concat "U " (match-string-no-properties 0))))
 
@@ -534,10 +533,6 @@ Use FORCE to markup any buffer"
                      "#+")
                     ((string= "РУДЗ" body)
                      "HELP")
-                    ((string= "help" body)
-                     "HELP")
-                    ((string= "d l" body)
-                     "D L")
                     (t
                      body))))
         ad-do-it)
