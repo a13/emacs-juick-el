@@ -198,7 +198,6 @@ Use FORCE to markup any buffer"
 (add-hook 'jabber-alert-message-hooks 'juick-markup-chat)
 
 (defvar juick-delimiter-autoresize t)
-
 (defvar juick-char-delimiter ?_)
 
 (defun juick-post-delimiter (window)
@@ -207,8 +206,12 @@ Use FORCE to markup any buffer"
 		   (if (window-system) 0))
 		juick-char-delimiter) "\n"))
 
+(defun juick-point-min ()
+    (or juick-point-last-message (point-min)))
+
 (defun juick-delimiter-insert (window)
-  (goto-char (or juick-point-last-message (point-min)))
+  "Inserts delimiter before @username"
+  (goto-char (juick-point-min))
   (let ((inhibit-read-only t))
     (while (re-search-forward juick-username-avatar-regex nil t)
       (goto-char (match-beginning 0))
@@ -242,7 +245,7 @@ Use FORCE to markup any buffer"
 ;;(remove-hook 'window-size-change-functions 'juick-delimiter-reset)
 
 (defun juick-avatar-insert ()
-  (goto-char (or juick-point-last-message (point-min)))
+  (goto-char (juick-point-min))
   (setq juick-avatar-internal-stack nil)
   (let ((inhibit-read-only t))
     (while (re-search-forward juick-username-avatar-regex nil t)
@@ -417,7 +420,7 @@ Use FORCE to markup any buffer"
 
 (defmacro juick-markup (re face &optional action)
   `(progn 
-     (goto-char (or juick-point-last-message (point-min)))
+     (goto-char (juick-point-min))
      (while (re-search-forward ,re nil t)
        (when (match-string 1)
          (juick-add-overlay (match-beginning 1) (match-end 1)
@@ -428,7 +431,7 @@ Use FORCE to markup any buffer"
 
 (defun juick-markup-tag ()
   "Markup tag matched by regex `juick-regex-tag'"
-  (goto-char (or juick-point-last-message (point-min)))
+  (goto-char (juick-point-min))
   ;;; FIXME: I dont know how to recognize a tag point
   (while (re-search-forward (concat juick-user-name-regex  "\: ") nil t)
     ;;(goto-char (+ (point) (length (match-string 1))))
