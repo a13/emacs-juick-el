@@ -193,15 +193,18 @@ Use FORCE to markup any buffer"
           (clear-image-cache)
           (juick-avatar-insert)))))
 
+
 (add-hook 'jabber-alert-message-hooks 'juick-markup-chat)
 
 (defvar juick-delimiter-autoresize t)
+
+(defvar juick-char-delimiter ?_)
 
 (defun juick-post-delimiter (window)
   (concat "\n" (make-string
 		(+ (window-width window)
 		   (if (window-system) 0))
-		?_) "\n"))
+		juick-char-delimiter) "\n"))
 
 (defun juick-delimiter-insert (window)
   (goto-char (or juick-point-last-message (point-min)))
@@ -227,7 +230,7 @@ Use FORCE to markup any buffer"
       (when (and (get-buffer buffer) window)
 	(with-current-buffer buffer
           (goto-char (point-min))
-          (while (re-search-forward "\n_+\n" nil t)
+          (while (re-search-forward (concat "\n" (string juick-char-delimiter) "+\n") nil t)
             (replace-match (juick-post-delimiter window))
             (goto-char (+ 1 (point)))))))))
 
@@ -240,7 +243,7 @@ Use FORCE to markup any buffer"
   (setq juick-avatar-internal-stack nil)
   (let ((inhibit-read-only t))
     (while (re-search-forward "\\(from @\\|Reply by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
-      (let* ((icon-string "\n ")
+      (let* ((icon-string "\n  ")
              (name (match-string-no-properties 2))
              (fake-png (concat juick-tmp-dir "/" name ".png")))
         (goto-char (match-beginning 0))
@@ -251,9 +254,10 @@ Use FORCE to markup any buffer"
                       :file ,fake-png))
          icon-string)
         (re-search-forward "@" nil t)
-        (goto-char (- (point) 1))
-        (insert (concat icon-string " "))
-        (re-search-forward ":" nil t)))))
+        (let ((begin (- (point) 1)))
+          (goto-char begin)
+          (insert icon-string)
+          (re-search-forward ":" nil t))))))
 
 (defun juick-avatar-download (name)
   "Download avatar from juick.com"
