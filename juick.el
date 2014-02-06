@@ -312,10 +312,10 @@ Use FORCE to markup any buffer"
        (unless (string= last-command "mouse-drag-region")
          (self-insert-command 1)))))
 
- (defun things-at-point-looking-at (&rest regexps)
-   "Multi-argument thing-at-point-looking-at"
-   (cl-some 'identity
-            (mapcar 'thing-at-point-looking-at regexps)))
+(defun things-at-point-looking-at (&rest regexps)
+  "Multi-argument thing-at-point-looking-at"
+  (cl-some 'identity
+           (mapcar 'thing-at-point-looking-at regexps)))
 
 (define-juick-action juick-recommend
   (thing-at-point-looking-at juick-id-simple-regex)
@@ -336,12 +336,12 @@ Use FORCE to markup any buffer"
 (define-juick-action juick-remove-tag
   (thing-at-point-looking-at "\\(\\*[^ \n]+\\)")
   (save-excursion
-        (let ((tag (match-string-no-properties 1))
-              (id (if (re-search-forward "^#[0-9]+\\(/[0-9]+\\)?" nil)
-                      (match-string-no-properties 0))))
-          (when (and id tag)
-            (message (concat "Tag " tag " (" id ")" " deleted"))
-            (juick-send-message juick-bot-jid (concat id " " tag))))))
+    (let ((tag (match-string-no-properties 1))
+          (id (if (re-search-forward "^#[0-9]+\\(/[0-9]+\\)?" nil)
+                  (match-string-no-properties 0))))
+      (when (and id tag)
+        (message (concat "Tag " tag " (" id ")" " deleted"))
+        (juick-send-message juick-bot-jid (concat id " " tag))))))
 
 (define-juick-action juick-add-tag
   (thing-at-point-looking-at juick-id-simple-regex)
