@@ -202,9 +202,9 @@ Use FORCE to markup any buffer"
 
 (defvar juick-delimiter-autoresize t)
 
-(defun juick-post-delimiter ()
+(defun juick-post-delimiter (window)
   (concat "\n" (make-string
-		(+ (window-width (selected-window))
+		(+ (window-width window)
 		   (if (window-system) 0))
 		?_) "\n"))
 
@@ -215,7 +215,7 @@ Use FORCE to markup any buffer"
       (goto-char (match-beginning 0))
       (re-search-forward "@" nil t)
       (goto-char (- (point) 1))
-      (insert (juick-post-delimiter))
+      (insert (juick-post-delimiter (selected-window)))
       (when (not (and juick-icon-mode window-system))
 	(insert " "))
       (re-search-forward ":" nil t))))
@@ -232,7 +232,7 @@ Use FORCE to markup any buffer"
 	(with-current-buffer buffer
 	  (goto-char (point-min))
 	  (while (re-search-forward "\n_+\n" nil t)
-	    (replace-match (juick-post-delimiter))
+	    (replace-match (juick-post-delimiter (get-buffer-window buffer)))
 	    (goto-char (+ 1 (point)))))))))
 
 (when juick-delimiter-autoresize 
