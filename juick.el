@@ -231,7 +231,9 @@ Use FORCE to markup any buffer"
       (when (and (get-buffer buffer) window)
 	(with-current-buffer buffer
           (goto-char (point-min))
-          (while (re-search-forward (concat "\n" (string juick-char-delimiter) "+\n") nil t)
+          (while (re-search-forward
+                  (concat "\n" (string juick-char-delimiter) "+\n")
+                  nil t)
             (replace-match (juick-post-delimiter window))
             (goto-char (+ 1 (point)))))))))
 
@@ -377,7 +379,7 @@ Use FORCE to markup any buffer"
                       (concat "U " (match-string-no-properties 0))))
 
 (define-juick-action juick-go-delete
-  (thing-at-point-looking-at "#[0-9]+\\(/[0-9]+\\)?")
+  (thing-at-point-looking-at juick-id-noreply-regex)
   (juick-send-message juick-bot-jid
                       (concat "D " (match-string-no-properties 0))))
 
@@ -603,7 +605,7 @@ Use FORCE to markup any buffer"
   (interactive)
   (save-excursion
     (beginning-of-line)
-    (when (or (looking-at "#[0-9]+\\(/[0-9]+\\)?")
+    (when (or (looking-at juick-id-noreply-regex)
               (looking-at juick-username-simple-regex))
       (setq juick-bookmarks
             (remove-if
