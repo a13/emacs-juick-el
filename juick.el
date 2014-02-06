@@ -248,15 +248,15 @@ Use FORCE to markup any buffer"
              (fake-png (concat juick-tmp-dir "/" name ".png")))
         (goto-char (match-beginning 0))
         (juick-avatar-download name)
-        (set-text-properties
-         1 2 `(display
-               (image :type png
-                      :file ,fake-png))
-         icon-string)
+        (set-text-properties 1 2
+                             `(display (image :type png :file ,fake-png))
+                             icon-string)
         (re-search-forward "@" nil t)
-        (let ((begin (- (point) 1)))
+        (let* ((begin (- (point) 1))
+               (end (+ begin (length icon-string))))
           (goto-char begin)
           (insert icon-string)
+          (add-text-properties begin end '(read-only t))
           (re-search-forward ":" nil t))))))
 
 (defun juick-avatar-download (name)
