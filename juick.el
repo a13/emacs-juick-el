@@ -315,11 +315,6 @@ Use FORCE to markup any buffer"
   (juick-send-message juick-bot-jid
 		      (concat "! " (match-string-no-properties 0))))
 
-(define-juick-action juick-like
-  (thing-at-point-looking-at juick-username-simple-regex)
-  (juick-send-message juick-bot-jid
-		      (concat "L " (match-string-no-properties 0))))
-
 (define-juick-action juick-list-messages
   (or (thing-at-point-looking-at juick-id-simple-regex)
       (thing-at-point-looking-at juick-username-simple-regex))
@@ -652,7 +647,6 @@ Use FORCE to markup any buffer"
 (define-key jabber-chat-mode-map "r" 'juick-remove-tag)
 (define-key jabber-chat-mode-map "!" 'juick-recommend)
 (define-key jabber-chat-mode-map "+" 'juick-list-messages)
-(define-key jabber-chat-mode-map "l" 'juick-like)
 
 (when juick-use-cyr-map
   (define-key jabber-chat-mode-map "п" 'juick-go-url)
@@ -660,8 +654,7 @@ Use FORCE to markup any buffer"
   (define-key jabber-chat-mode-map "ы" 'juick-go-subscribe)
   (define-key jabber-chat-mode-map "г" 'juick-go-unsubscribe)
   (define-key jabber-chat-mode-map "в" 'juick-go-delete)
-  (define-key jabber-chat-mode-map "з" 'juick-go-private)
-  (define-key jabber-chat-mode-map "д" 'juick-like))
+  (define-key jabber-chat-mode-map "з" 'juick-go-private))
 
 (provide 'juick)
 ;;; juick.el ends here
