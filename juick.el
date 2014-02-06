@@ -147,6 +147,7 @@ Useful for people more reading instead writing")
 ;; from http://juick.com/help/
 ;; markup re
 (defvar juick-id-regex "[^0-9]+\\(#[0-9]+\\(/[0-9]+\\)?\\)")
+(defvar juick-id-noreply-regex "#[0-9]+\\(/[0-9]+\\)?")
 (defvar juick-id-simple-regex "#\\([0-9]+\\)")
 (defvar juick-user-name-regex "[^0-9A-Za-z\\.]\\(@[0-9A-Za-z@\\.\\-]+\\)")
 (defvar juick-tag-regex "\\(\\*[^ \n]+\\)")
@@ -162,7 +163,7 @@ Useful for people more reading instead writing")
 ;; misc re
 (defvar juick-id-simple-regex "#[0-9]+")
 (defvar juick-username-simple-regex "@[0-9A-Za-z@\.\-]+")
-
+(defvar juick-username-avatar-regex "\\(from @\\|Reply by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):")
 
 (defun juick-markup-chat (from buffer text proposed-alert &optional force)
   "Markup  message from `juick-bot-jid'.
@@ -209,7 +210,7 @@ Use FORCE to markup any buffer"
 (defun juick-delimiter-insert (window)
   (goto-char (or juick-point-last-message (point-min)))
   (let ((inhibit-read-only t))
-    (while (re-search-forward "\\(from @\\|Reply by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+    (while (re-search-forward juick-username-avatar-regex nil t)
       (goto-char (match-beginning 0))
       (re-search-forward "@" nil t)
       (goto-char (- (point) 1))
@@ -242,7 +243,7 @@ Use FORCE to markup any buffer"
   (goto-char (or juick-point-last-message (point-min)))
   (setq juick-avatar-internal-stack nil)
   (let ((inhibit-read-only t))
-    (while (re-search-forward "\\(from @\\|Reply by @\\|> @\\|^@\\)\\([0-9A-Za-z@\\.\\-]+\\):" nil t)
+    (while (re-search-forward juick-username-avatar-regex nil t)
       (let* ((icon-string "\n  ")
              (name (match-string-no-properties 2))
              (fake-png (concat juick-tmp-dir "/" name ".png")))
