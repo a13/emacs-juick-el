@@ -180,18 +180,14 @@ Use FORCE to markup any buffer"
              (jabber-truncate-top buffer)))
           (setq juick-point-last-message
                 (re-search-backward "\\[[0-9]+:[0-9]+\\].*>" nil t)))
-        (juick-button-markup juick-user-name-regex
-                             juick-user-name-face
-                             juick-insert-user-name)
-        (juick-button-markup juick-id-regex
-                             juick-id-face
-                             juick-insert-id)
+        (juick-markup juick-user-name-regex juick-user-name-face juick-insert-user-name)
+        (juick-markup juick-id-regex juick-id-face juick-insert-id)
         (juick-markup-tag)
-        (juick-simple-markup juick-quote-regex juick-quote-face)
-        (juick-simple-markup juick-pm-regex juick-pm-face)
-        (juick-simple-markup juick-italic-regex juick-italic-face)
-        (juick-simple-markup juick-bold-regex juick-bold-face)
-        (juick-simple-markup juick-underline-regex juick-underline-face)
+        (juick-markup juick-quote-regex juick-quote-face)
+        (juick-markup juick-pm-regex juick-pm-face)
+        (juick-markup juick-italic-regex juick-italic-face)
+        (juick-markup juick-bold-regex juick-bold-face)
+        (juick-markup juick-underline-regex juick-underline-face)
 	(juick-delimiter-insert (get-buffer-window buffer))
         (when (and juick-icon-mode window-system)
           (clear-image-cache)
@@ -412,23 +408,16 @@ Use FORCE to markup any buffer"
       (insert text)
       (jabber-chat-buffer-send))))
 
-(defmacro juick-simple-markup (re face)
-  `(progn
-    (goto-char (or juick-point-last-message (point-min)))
-    (while (re-search-forward ,re nil t)
-      (juick-add-overlay (match-beginning 1) (match-end 1)
-                         ',face)
-      (goto-char (- (point) 1)))))
-
-(defmacro juick-button-markup (re face action)
+(defmacro juick-markup (re face &optional action)
   `(progn 
      (goto-char (or juick-point-last-message (point-min)))
      (while (re-search-forward ,re nil t)
        (when (match-string 1)
          (juick-add-overlay (match-beginning 1) (match-end 1)
                             ',face)
-         (make-button (match-beginning 1) (match-end 1)
-                      'action ',action)))))
+         (when ',action
+           (make-button (match-beginning 1) (match-end 1)
+                        'action ',action))))))
 
 (defun juick-markup-tag ()
   "Markup tag matched by regex `juick-regex-tag'"
