@@ -349,7 +349,7 @@ Use FORCE to markup any buffer"
   (things-at-point-looking-at juick-id-regex juick-user-name-regex)
   (let* ((part-of-url (match-string-no-properties 1))
          (part-of-url (replace-regexp-in-string "@\\|#" "" part-of-url))
-         (part-of-url (replace-regexp in-string "/" "#" part-of-url)))
+         (part-of-url (replace-regexp-in-string "/" "#" part-of-url)))
     (message part-of-url)
     (browse-url (concat "http://juick.com/" part-of-url))))
 
