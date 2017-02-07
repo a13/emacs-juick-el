@@ -151,7 +151,6 @@ FACE, MOUSE-FACE, HELP-ECHO and KEYMAP properties."
       (point-im--overlay-put this-overlay 'commands commands)
       ;; type: id, nick, tag
       (point-im--overlay-put this-overlay 'type type)
-      (overlay-put this-overlay 'keymap (or keymap point-im-highlight-keymap))
       (overlay-put this-overlay 'point-im t)
       ;; only for the link
       (when (and m type)
@@ -180,6 +179,14 @@ FACE, MOUSE-FACE, HELP-ECHO and KEYMAP properties."
   "Alist of elements (RE FACE-SYMBOL &key ...).
 For keyword arguments see `point-im--propertize'")
 
+(defun point-im--make-keymap-overlay (start end)
+  "Create an overlay from START to END for keymap property."
+  (let ((keymap-overlay (make-overlay start end)))
+    (overlay-put keymap-overlay 'evaporate t)
+    (overlay-put keymap-overlay 'point-im-keymap-overlay t)
+    (overlay-put keymap-overlay 'priority 100500)
+    (overlay-put keymap-overlay 'keymap point-im-highlight-keymap)))
+
 (defun point-im-fontify (&optional start end)
   "Fontify entities in the region between START and END.
 If both are nil, from begin to the end of the buffer)."
@@ -189,6 +196,7 @@ If both are nil, from begin to the end of the buffer)."
     (point-im-unfontify start end)
     (save-excursion
       (let ((inhibit-point-motion-hooks t))
+        (point-im--make-keymap-overlay start end)
         (dolist (fontify-args point-im-re-face-alist)
           (apply #'point-im--propertize start end fontify-args))))))
 
@@ -222,11 +230,16 @@ See `jabber-chat-printers' for full documentation."
   "Open entity URL in browser using `browse-url'."
   (interactive)
   (let ((url (or (point-im-prop-at-point 'url)
-                 (browse-url-url-at-point))))
-    (when url
-      (browse-url url)
-      (unless (string= last-command "mouse-drag-region")
-        (self-insert-command 1)))))
+                 (thing-at-point 'url t))))
+    (if url
+        (progn
+          (browse-url url)
+          (unless (string= last-command "mouse-drag-region")
+            (self-insert-command 1)))
+      (save-excursion
+        (point-im--avy-jump-to-any t)
+        (point-im-go-url)))))
+
 
 (defun point-im-insert ()
   "Insert reply id in conversation buffer."
@@ -246,12 +259,22 @@ See `jabber-chat-printers' for full documentation."
       (recenter 10)
       t)))
 
+(defun point-im--avy-jump-to-any (do-not-insert)
+  ""
+  (when (require 'avy nil t)
+    (point-im-avy-goto-any do-not-insert)))
+
 (defun point-im--send-action (text-proc)
   "Send a matched-text processed by TEXT-PROC."
-  (let ((matched-text (point-im-matched-at-point)))
+  (let* ((matched-text (point-im-matched-at-point))
+         (matched-text (or matched-text
+                           (progn
+                             (point-im--avy-jump-to-any t)
+                             (point-im-matched-at-point)))))
     (when matched-text
       (point-im--send-message point-im-bot-jid
-                              (funcall text-proc matched-text)))))
+                      (funcall text-proc matched-text)))))
+
 
 (defmacro def-simple-action (name fmt)
   "Make an action NAME for a simple command using FMT format string."
