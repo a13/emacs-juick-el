@@ -35,37 +35,37 @@
 (defgroup point-im-faces nil "Faces for displaying Point.im msg"
   :group 'point-im)
 
-(defface point-im-id-face
+(defface point-im-id
   '((t (:foreground "yellow" :weight bold)))
   "face for displaying id"
   :group 'point-im-faces)
 
-(defface point-im-user-name-face
+(defface point-im-user-name
   '((t (:foreground "DeepSkyBlue" :weight bold :slant normal)))
   "face for displaying user name"
   :group 'point-im-faces)
 
-(defface point-im-bold-face
+(defface point-im-bold
   '((t (:weight bold)))
   "face for markdown **text**"
   :group 'point-im-faces)
 
-(defface point-im-italic-face
+(defface point-im-italic
   '((t (:slant oblique :weight extra-light)))
   "face for markdown *text*"
   :group 'point-im-faces)
 
-(defface point-im-tag-face
+(defface point-im-tag
   '((t (:foreground "LawnGreen" :slant oblique :weight extra-light)))
   "face for markdown *text*"
   :group 'point-im-faces)
 
-(defface point-im-quote-face
+(defface point-im-quote
   '((t (:foreground "gray" :slant oblique)))
   "face for markdown > text"
   :group 'point-im-faces)
 
-(defface point-im-striked-out-face
+(defface point-im-striked-out
   '((t (:strike-through t :weight bold)))
   "face for ^W word"
   :group 'point-im-faces)
@@ -168,15 +168,15 @@ FACE, MOUSE-FACE, HELP-ECHO and KEYMAP properties."
         (point-im--overlay-put this-overlay 'help-echo help-echo)))))
 
 (defvar point-im-re-face-alist
-  `((,point-im-id-regex point-im-id-face :type id)
-    (,point-im-user-name-regex point-im-user-name-face :type user)
-    (,point-im-italic-regex point-im-italic-face)
-    (,point-im-bold-regex point-im-bold-face)
-    (,point-im-tag-regex point-im-tag-face :type tag)
-    (,point-im-stag-regex point-im-tag-face :type stag)
-    (,point-im-quote-regex point-im-quote-face)
-    (,point-im-striked-out-regex point-im-striked-out-face)
-    (,point-im-md-striked-out-regex point-im-striked-out-face))
+  `((,point-im-id-regex point-im-id :type id)
+    (,point-im-user-name-regex point-im-user-name :type user)
+    (,point-im-italic-regex point-im-italic)
+    (,point-im-bold-regex point-im-bold)
+    (,point-im-tag-regex point-im-tag :type tag)
+    (,point-im-stag-regex point-im-tag :type stag)
+    (,point-im-quote-regex point-im-quote)
+    (,point-im-striked-out-regex point-im-striked-out)
+    (,point-im-md-striked-out-regex point-im-striked-out))
   "Alist of elements (RE FACE-SYMBOL &key ...).
 For keyword arguments see `point-im--propertize'")
 
